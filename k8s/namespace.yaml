@@ -1,0 +1,8 @@
+---
+# Namespace isolates all DSVC resources from the rest of the cluster.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dsvc
+  labels:
+    app.kubernetes.io/name: dsvc

@@ -1,0 +1,107 @@
+---
+# StatefulSet is used instead of Deployment because storage nodes need:
+#   1. Stable network identity (node-0, node-1, node-2)  — required by Raft
+#   2. Ordered, graceful rolling updates (one node at a time)
+#   3. Persistent volume per pod that survives pod restarts
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dsvc-node
+  namespace: dsvc
+  labels:
+    app: dsvc-node
+spec:
+  serviceName: dsvc-headless   # ties pods to the headless service
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate          # replace pods one at a time (safe for Raft)
+  selector:
+    matchLabels:
+      app: dsvc-node
+  template:
+    metadata:
+      labels:
+        app: dsvc-node
+    spec:
+      # Ensure pods land on different physical nodes for true HA.
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchexpressions:
+                  - key: app
+                    operator: In
+                    values: [dsvc-node]
+              topologyKey: kubernetes.io/hostname
+
+      terminationGracePeriodSeconds: 30
+
+      containers:
+        - name: dsvc-node
+          image: dsvc-node:latest        # replace with your registry image
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 7000
+              name: raft
+
+          env:
+            # Pod name is node-0 / node-1 / node-2 — used as the node ID.
+            - name: DSVC_NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DSVC_HTTP_PORT
+              value: "8080"
+            - name: DSVC_RAFT_PORT
+              value: "7000"
+            - name: DSVC_DATA_DIR
+              value: /data
+            # Only node-0 bootstraps on the very first cluster creation.
+            # Subsequent nodes get peers to join the existing cluster.
+            - name: DSVC_BOOTSTRAP
+              value: "false"           # set to "true" for node-0 on first boot only
+            - name: DSVC_PEERS
+              value: "dsvc-node-0.dsvc-headless.dsvc.svc.cluster.local:7000"
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+
+          # Liveness: restarts pod if it stops responding.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+
+          # Readiness: keeps pod out of load-balancer rotation during startup.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          volumeMounts:
+            - name: data
+              mountPath: /data
+
+  # VolumeClaimTemplates auto-provision a PVC for each pod.
+  # Pods keep their PV even after deletion and reuse it on reschedule.
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        storageClassName: standard      # replace with your StorageClass (e.g. gp3 on EKS)
+        resources:
+          requests:
+            storage: 100Gi

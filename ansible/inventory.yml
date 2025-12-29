@@ -1,0 +1,37 @@
+---
+# Ansible inventory for DSVC storage nodes.
+# Replace IPs/hostnames with your actual infrastructure.
+# For cloud providers, consider using dynamic inventory plugins instead.
+
+all:
+  vars:
+    ansible_user: ubuntu
+    ansible_ssh_private_key_file: ~/.ssh/dsvc_key
+
+  children:
+    dsvc_cluster:
+      vars:
+        dsvc_http_port: 8080
+        dsvc_raft_port: 7000
+        dsvc_data_dir: /opt/dsvc/data
+        dsvc_image: dsvc-node:latest
+        dsvc_docker_network: dsvc-net
+
+      hosts:
+        node-1:
+          ansible_host: 10.0.1.11
+          dsvc_node_id: node-1
+          dsvc_bootstrap: "true"
+          dsvc_peers: ""
+
+        node-2:
+          ansible_host: 10.0.1.12
+          dsvc_node_id: node-2
+          dsvc_bootstrap: "false"
+          dsvc_peers: "10.0.1.11:7000"
+
+        node-3:
+          ansible_host: 10.0.1.13
+          dsvc_node_id: node-3
+          dsvc_bootstrap: "false"
+          dsvc_peers: "10.0.1.11:7000"

@@ -1,0 +1,41 @@
+---
+# Headless service gives each StatefulSet pod a stable DNS entry:
+#   node-{0,1,2}.dsvc-headless.dsvc.svc.cluster.local
+# Required by Raft: each peer needs a stable, predictable address.
+apiVersion: v1
+kind: Service
+metadata:
+  name: dsvc-headless
+  namespace: dsvc
+  labels:
+    app: dsvc-node
+spec:
+  clusterIP: None          # headless — no VIP, DNS resolves to pod IPs directly
+  selector:
+    app: dsvc-node
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: raft
+      port: 7000
+      targetPort: 7000
+
+---
+# ClusterIP service for load-balanced client traffic.
+# Clients hit this single endpoint; K8s round-robins across healthy pods.
+apiVersion: v1
+kind: Service
+metadata:
+  name: dsvc-api
+  namespace: dsvc
+  labels:
+    app: dsvc-node
+spec:
+  selector:
+    app: dsvc-node
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+  type: ClusterIP

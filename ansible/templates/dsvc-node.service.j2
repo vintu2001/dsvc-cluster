@@ -1,0 +1,32 @@
+[Unit]
+Description=DSVC Distributed Storage Node ({{ dsvc_node_id }})
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+User={{ dsvc_user }}
+Group={{ dsvc_group }}
+Restart=always
+RestartSec=5
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+ExecStartPre=-/usr/bin/docker rm -f dsvc-{{ dsvc_node_id }}
+ExecStart=/usr/bin/docker run \
+    --name dsvc-{{ dsvc_node_id }} \
+    --network {{ dsvc_docker_network }} \
+    -p {{ dsvc_http_port }}:8080 \
+    -p {{ dsvc_raft_port }}:7000 \
+    -v {{ dsvc_data_dir }}:/data \
+    -e DSVC_NODE_ID={{ dsvc_node_id }} \
+    -e DSVC_HTTP_PORT=8080 \
+    -e DSVC_RAFT_PORT=7000 \
+    -e DSVC_DATA_DIR=/data \
+    -e DSVC_BOOTSTRAP={{ dsvc_bootstrap }} \
+    -e DSVC_PEERS={{ dsvc_peers }} \
+    {{ dsvc_image }}
+
+ExecStop=/usr/bin/docker stop dsvc-{{ dsvc_node_id }}
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,71 @@
+networks:
+  dsvc-net:
+    driver: bridge
+
+volumes:
+  node1-data:
+  node2-data:
+  node3-data:
+
+services:
+  node-1:
+    image: dsvc-node:latest
+    container_name: dsvc-node-1
+    environment:
+      DSVC_NODE_ID: node-1
+      DSVC_HTTP_PORT: "8080"
+      DSVC_RAFT_PORT: "7000"
+      DSVC_DATA_DIR: /data
+      DSVC_BOOTSTRAP: "true"
+    ports:
+      - "8081:8080"
+      - "7001:7000"
+    volumes:
+      - node1-data:/data
+    networks:
+      - dsvc-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  node-2:
+    image: dsvc-node:latest
+    container_name: dsvc-node-2
+    environment:
+      DSVC_NODE_ID: node-2
+      DSVC_HTTP_PORT: "8080"
+      DSVC_RAFT_PORT: "7000"
+      DSVC_DATA_DIR: /data
+      DSVC_PEERS: "node-1:7000"
+    ports:
+      - "8082:8080"
+      - "7002:7000"
+    volumes:
+      - node2-data:/data
+    networks:
+      - dsvc-net
+    depends_on:
+      node-1:
+        condition: service_healthy
+
+  node-3:
+    image: dsvc-node:latest
+    container_name: dsvc-node-3
+    environment:
+      DSVC_NODE_ID: node-3
+      DSVC_HTTP_PORT: "8080"
+      DSVC_RAFT_PORT: "7000"
+      DSVC_DATA_DIR: /data
+      DSVC_PEERS: "node-1:7000"
+    ports:
+      - "8083:8080"
+      - "7003:7000"
+    volumes:
+      - node3-data:/data
+    networks:
+      - dsvc-net
+    depends_on:
+      node-1:
+        condition: service_healthy

@@ -1,0 +1,43 @@
+---
+# expand_cluster.yml — Adds a new node to a running DSVC cluster.
+#
+# When to use:
+#   Run this after adding a new host to [dsvc_cluster] in inventory.yml.
+#   This playbook provisions ONLY the new node, then notifies the leader
+#   to join it into the Raft cluster and the consistent hash ring.
+#
+# Usage:
+#   ansible-playbook -i ansible/inventory.yml ansible/expand_cluster.yml \
+#     --limit node-4
+
+- name: Expand DSVC cluster with a new storage node
+  hosts: "{{ target_node | default('node-4') }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    leader_url: "http://{{ hostvars[groups['dsvc_cluster'][0]]['ansible_host'] }}:{{ dsvc_http_port }}"
+
+  tasks:
+    - name: Provision node baseline (idempotent)
+      ansible.builtin.import_playbook: provision.yml
+
+    - name: Wait for the new node's HTTP API to be ready
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:{{ dsvc_http_port }}/healthz"
+        status_code: 200
+      register: health
+      retries: 12
+      delay: 5
+      until: health.status == 200
+
+    - name: Register new node with the cluster leader
+      ansible.builtin.uri:
+        url: "{{ leader_url }}/internal/nodes"
+        method: POST
+        body_format: json
+        body:
+          node_id: "{{ dsvc_node_id }}"
+          addr: "http://{{ ansible_host }}:{{ dsvc_http_port }}"
+        status_code: 200
+      delegate_to: localhost
