@@ -1,0 +1,41 @@
+# Binaries
+dsvc-node
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Test binaries
+*.test
+*.out
+
+# Go workspace
+/vendor/
+go.work
+go.work.sum
+
+# Data directories
+data/
+*.db
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+*.pid
+
+# Temporary files
+/tmp/
+*.tmp
