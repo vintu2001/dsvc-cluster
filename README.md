@@ -373,24 +373,3 @@ docker exec dsvc-node-1 wget -qO- http://localhost:8080/healthz
 ```
 
 ---
-
-## 📝 License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
----
-
-## 🤝 Contributing
-
-Pull requests welcome! Please ensure:
-- Code is formatted: `go fmt ./...`
-- Commits are descriptive
-
----
-
-## 🙏 Acknowledgments
-
-Built with:
-- [hashicorp/raft](https://github.com/hashicorp/raft) - Consensus protocol
-- [gorilla/mux](https://github.com/gorilla/mux) - HTTP routing
-- [bbolt](https://github.com/etcd-io/bbolt) - Embedded key-value store
